@@ -6,15 +6,15 @@ module ActiveRecord
         # Adds a product to the cart
         #
         def add(object, price, quantity = 1, cumulative = true)
+          price = Money.new((price * 100).ceil, Money.default_currency) unless price.is_a?(Money)
           cart_item = item_for(object)
 
-          if cart_item
+          unless cart_item
+            shopping_cart_items.create(:item => object, :price_cents => price.cents, :quantity => quantity, :price_currency => price.currency.to_str)
+          else
             cumulative = cumulative == true ? cart_item.quantity : 0
             cart_item.quantity = (cumulative + quantity)
             cart_item.save
-            cart_item
-          else
-            shopping_cart_items.create(item: object, price: price, quantity: quantity)
           end
         end
 
@@ -47,15 +47,14 @@ module ActiveRecord
         end
 
         #
-        # Returns the subtotal by summing the price times quantity for all the
-        # items in the cart
+        # Returns the subtotal by summing the price times quantity for all the items in the cart
         #
         def subtotal
-          shopping_cart_items.inject(Money.new(0)) { |sum, item| sum += (item.price * item.quantity) }
+          shopping_cart_items.inject(Money.new(0, Money.default_currency)) { |sum, item| sum += (item.price * item.quantity)}
         end
 
         def shipping_cost
-          Money.new(0)
+          Money.new(0, Money.default_currency)
         end
 
         def taxes
